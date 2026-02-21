@@ -51,7 +51,7 @@ namespace UnitBrains.Player
                 return targetPositions;
             }
             Vector2Int target = targetPositions[0];
-            float minRangeToBase = float.MinValue;
+            float minRangeToBase = float.MaxValue;
             foreach (var t in targetPositions)
             {
                 var rangeToBase = DistanceToOwnBase(t);
