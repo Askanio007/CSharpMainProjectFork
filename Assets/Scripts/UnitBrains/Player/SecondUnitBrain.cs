@@ -61,9 +61,9 @@ namespace UnitBrains.Player
                 result.Add(runtimeModel.RoMap.Bases[IsPlayerUnitBrain ? RuntimeModel.BotPlayerId : RuntimeModel.PlayerId]);
                 return result;
             }
-            foreach (Vector2Int position in allTargetPositions)
             float minRangeToBase = float.MaxValue;
             List<Vector2Int> reachableTargetPositions = GetReachableTargets();
+            foreach (Vector2Int position in allTargetPositions)
             {
                 var rangeToBase = DistanceToOwnBase(position);
                 if (minRangeToBase > rangeToBase)
