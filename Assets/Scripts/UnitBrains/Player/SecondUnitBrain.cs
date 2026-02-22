@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using Model;
 using Model.Runtime.Projectiles;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+using Utilities;
 
 namespace UnitBrains.Player
 {
@@ -13,6 +15,7 @@ namespace UnitBrains.Player
         private float _temperature = 0f;
         private float _cooldownTime = 0f;
         private bool _overheated;
+        private List<Vector2Int> outOfReachTargets = new();
         
         protected override void GenerateProjectiles(Vector2Int forTarget, List<BaseProjectile> intoList)
         {
@@ -37,7 +40,13 @@ namespace UnitBrains.Player
 
         public override Vector2Int GetNextStep()
         {
-            return base.GetNextStep();
+            Vector2Int unitPos = unit.Pos;
+            if (!outOfReachTargets.Any() || GetReachableTargets().Contains(outOfReachTargets[0]))
+            {
+                return unitPos;
+            }
+
+            return unitPos.CalcNextStepTowards(outOfReachTargets[0]);
         }
 
         protected override List<Vector2Int> SelectTargets()
@@ -45,23 +54,31 @@ namespace UnitBrains.Player
             ///////////////////////////////////////
             // Homework 1.4 (1st block, 4rd module)
             ///////////////////////////////////////
-            List<Vector2Int> targetPositions = GetReachableTargets();
-            if (!targetPositions.Any())
+            List<Vector2Int> result = new();
+            IEnumerable<Vector2Int> allTargetPositions = GetAllTargets();
+            if (!allTargetPositions.Any())
             {
-                return targetPositions;
+                result.Add(runtimeModel.RoMap.Bases[IsPlayerUnitBrain ? RuntimeModel.BotPlayerId : RuntimeModel.PlayerId]);
+                return result;
             }
-            Vector2Int target = targetPositions[0];
+            foreach (Vector2Int position in allTargetPositions)
             float minRangeToBase = float.MaxValue;
-            foreach (var t in targetPositions)
+            List<Vector2Int> reachableTargetPositions = GetReachableTargets();
             {
-                var rangeToBase = DistanceToOwnBase(t);
+                var rangeToBase = DistanceToOwnBase(position);
                 if (minRangeToBase > rangeToBase)
                 {
                     minRangeToBase = rangeToBase;
-                    target = t;
+                    outOfReachTargets.Clear();
+                    outOfReachTargets.Add(position);
+                    if (reachableTargetPositions.Contains(position))
+                    {
+                        result.Clear();
+                        result.Add(position);
+                    }
                 }
             }
-            return new List<Vector2Int> { target };
+            return result;
             ///////////////////////////////////////
         }
 
