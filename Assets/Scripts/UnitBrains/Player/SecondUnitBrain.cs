@@ -9,6 +9,9 @@ namespace UnitBrains.Player
 {
     public class SecondUnitBrain : DefaultPlayerUnitBrain
     {
+        private static int ENEMY_ATTACK_COUNT = 3;
+        private static int idCounter = -1;
+        private int id = idCounter++;
         public override string TargetUnitName => "Cobra Commando";
         private const float OverheatTemperature = 3f;
         private const float OverheatCooldown = 2f;
@@ -16,7 +19,7 @@ namespace UnitBrains.Player
         private float _cooldownTime = 0f;
         private bool _overheated;
         private List<Vector2Int> outOfReachTargets = new();
-        
+
         protected override void GenerateProjectiles(Vector2Int forTarget, List<BaseProjectile> intoList)
         {
             float overheatTemperature = OverheatTemperature;
@@ -55,28 +58,22 @@ namespace UnitBrains.Player
             // Homework 1.4 (1st block, 4rd module)
             ///////////////////////////////////////
             List<Vector2Int> result = new();
-            IEnumerable<Vector2Int> allTargetPositions = GetAllTargets();
+            List<Vector2Int> allTargetPositions = GetAllTargets().ToList();
             if (!allTargetPositions.Any())
             {
                 result.Add(runtimeModel.RoMap.Bases[IsPlayerUnitBrain ? RuntimeModel.BotPlayerId : RuntimeModel.PlayerId]);
                 return result;
             }
-            float minRangeToBase = float.MaxValue;
+            SortByDistanceToOwnBase(allTargetPositions);
+            int targetIndex = id  < ENEMY_ATTACK_COUNT ? id : id % ENEMY_ATTACK_COUNT;
+            var targetPosition = allTargetPositions.Count <= targetIndex ? allTargetPositions[allTargetPositions.Count - 1] : allTargetPositions[targetIndex];
             List<Vector2Int> reachableTargetPositions = GetReachableTargets();
-            foreach (Vector2Int position in allTargetPositions)
+            outOfReachTargets.Clear();
+            outOfReachTargets.Add(targetPosition);
+            if (reachableTargetPositions.Contains(targetPosition))
             {
-                var rangeToBase = DistanceToOwnBase(position);
-                if (minRangeToBase > rangeToBase)
-                {
-                    minRangeToBase = rangeToBase;
-                    outOfReachTargets.Clear();
-                    outOfReachTargets.Add(position);
-                    if (reachableTargetPositions.Contains(position))
-                    {
-                        result.Clear();
-                        result.Add(position);
-                    }
-                }
+                result.Clear();
+                result.Add(targetPosition);
             }
             return result;
             ///////////////////////////////////////
