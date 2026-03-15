@@ -16,7 +16,7 @@ namespace UnitBrains.Pathfinding
             Vector2Int.left, 
             Vector2Int.right
         };
-        private const int MaxLength = 5000;
+        private const int MaxLength = 100;
 
         public AstarUnitPath(IReadOnlyRuntimeModel runtimeModel, Vector2Int startPoint, Vector2Int endPoint) : base(runtimeModel, startPoint, endPoint)
         {
@@ -113,10 +113,6 @@ namespace UnitBrains.Pathfinding
             public void CalculateValue()
             {
                 Value = Cost + Estimate;
-                if (Parent != null)
-                {
-                    Value += Parent.Value;
-                }
             }
 
             public override bool Equals(object obj)
