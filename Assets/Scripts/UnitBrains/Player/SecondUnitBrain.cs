@@ -43,12 +43,16 @@ namespace UnitBrains.Player
 
         public override Vector2Int GetNextStep()
         {
+            var recomendedTarget = ActionGenerator.GetInstance().GetRecomendedStep(IsPlayerUnitBrain);
             Vector2Int unitPos = unit.Pos;
-            if (!outOfReachTargets.Any() || GetReachableTargets().Contains(outOfReachTargets[0]))
+            if (!outOfReachTargets.Any())
+            {
+                return unitPos.CalcNextStepTowards(recomendedTarget);
+            }
+            if (GetReachableTargets().Contains(outOfReachTargets[0]))
             {
                 return unitPos;
             }
-
             return unitPos.CalcNextStepTowards(outOfReachTargets[0]);
         }
 
