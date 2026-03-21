@@ -43,7 +43,7 @@ namespace UnitBrains.Player
 
         public override Vector2Int GetNextStep()
         {
-            var recomendedTarget = ActionGenerator.GetInstance().GetRecomendedStep(IsPlayerUnitBrain);
+            var recomendedTarget = ActionGenerator.GetInstance().GetRecomendedStep(IsPlayerUnitBrain ? RuntimeModel.PlayerId : RuntimeModel.BotPlayerId, unit);
             Vector2Int unitPos = unit.Pos;
             if (!outOfReachTargets.Any())
             {

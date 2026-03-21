@@ -37,7 +37,7 @@ namespace UnitBrains
             if (HasTargetsInRange())
                 return unit.Pos;
 
-            var target = ActionGenerator.GetInstance().GetRecomendedStep(IsPlayerUnitBrain);
+            var target = ActionGenerator.GetInstance().GetRecomendedStep(IsPlayerUnitBrain ? RuntimeModel.PlayerId : RuntimeModel.BotPlayerId, unit);
 
             _activePath = new AstarUnitPath(runtimeModel, unit.Pos, target);
             return _activePath.GetNextStepFrom(unit.Pos);
@@ -76,9 +76,9 @@ namespace UnitBrains
 
         protected virtual List<Vector2Int> SelectTargets()
         {
-            var target = ActionGenerator.GetInstance().GetRecomendedTarget(IsPlayerUnitBrain);
+            var target = ActionGenerator.GetInstance().GetRecomendedTarget(IsPlayerUnitBrain ? RuntimeModel.PlayerId : RuntimeModel.BotPlayerId);
             List<Vector2Int> result = new List<Vector2Int>();
-            if (GetUnitsInRadius(RadiusForSearchTarget, true).Contains(target))
+            if (GetUnitsInRadius(RadiusForSearchTarget * unit.Config.AttackRange, true).Contains(target))
             {
                 result.Add(target.Pos);
                 return result; 

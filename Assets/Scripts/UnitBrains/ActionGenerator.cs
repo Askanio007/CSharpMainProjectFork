@@ -1,5 +1,7 @@
 using Model;
+using Model.Runtime;
 using Model.Runtime.ReadOnly;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Utilities;
@@ -9,19 +11,28 @@ public class ActionGenerator
     private static ActionGenerator _actionGenerator;
     private IReadOnlyRuntimeModel _runtimeModel;
     private TimeUtil _timeUtil;
-    private IReadOnlyUnit RecommendedPlayerTarget;
-    private Vector2Int RecommendedPlayerStep;
-    private IReadOnlyUnit RecommendedEnemyTarget;
-    private Vector2Int RecommendedEnemyStep;
-    private int _middleMapX;
+    private List<ActionRecomendation> _recomendations;
+    private int _middleMap;
+
+    private Vector2Int[] _directions = {
+            Vector2Int.down,
+            Vector2Int.up,
+            Vector2Int.left,
+            Vector2Int.right
+        };
 
     private ActionGenerator()
     {
         _runtimeModel = ServiceLocator.Get<IReadOnlyRuntimeModel>();
         _timeUtil = ServiceLocator.Get<TimeUtil>();
-        _timeUtil.AddFixedUpdateAction(CalcRecomendedTarget);
-        _timeUtil.AddFixedUpdateAction(CalcRecomendedStep);
-        _middleMapX = _runtimeModel.RoMap.Width / 2;
+        _recomendations = new List<ActionRecomendation>
+        {
+            new ActionRecomendation(),
+            new ActionRecomendation()
+        };
+        _middleMap = _runtimeModel.RoMap.Width / 2;
+        CalcRecomendations();
+        _timeUtil.AddFixedUpdateAction((deltaTime) => CalcRecomendations());
     }
 
     public static ActionGenerator GetInstance()
@@ -31,47 +42,85 @@ public class ActionGenerator
         return _actionGenerator; 
     }
 
-    public IReadOnlyUnit GetRecomendedTarget(bool IsPlayerUnitBrain)
+    public IReadOnlyUnit GetRecomendedTarget(int playerId)
     {
-        return IsPlayerUnitBrain ? RecommendedPlayerTarget : RecommendedEnemyTarget;
+        if (_recomendations.Count <= playerId)
+        {
+            return null;
+        }
+        return _recomendations[playerId].Target;
     }
 
-    public Vector2Int GetRecomendedStep(bool IsPlayerUnitBrain)
+    public Vector2Int GetRecomendedStep(int playerId, Unit unit)
     {
-        return IsPlayerUnitBrain ? RecommendedPlayerStep : RecommendedEnemyStep;
+        if (_recomendations.Count <= playerId)
+        {
+            return unit.Pos;
+        }
+        var recomendation = _recomendations[playerId];
+        if (!recomendation.UseRange)
+        {
+            return recomendation.Step;
+        }
+        var step = recomendation.Step;
+        var attackRange = unit.Config.AttackRange;
+
+        int range = Mathf.FloorToInt(attackRange);
+
+        for (int dx = -range; dx <= range; dx++)
+        {
+            int dyMax = range - Math.Abs(dx);
+            for (int dy = -dyMax; dy <= dyMax; dy++)
+            {
+                if (Math.Abs(dx) + Math.Abs(dy) == range)
+                {
+                    Vector2Int point = new Vector2Int(step.x + dx, step.y + dy);
+                    if (_runtimeModel.IsTileWalkable(point))
+                    {
+                        return point;
+                    }
+                }
+            }
+        }
+        return unit.Pos;
     }
 
-    private void CalcRecomendedTarget(float fixedDeltaTime)
+
+
+    private void CalcRecomendations()
     {
-        RecommendedPlayerTarget = CalcTarget(_runtimeModel.RoMap.Bases[RuntimeModel.PlayerId], _runtimeModel.RoBotUnits);
-        RecommendedEnemyTarget = CalcTarget(_runtimeModel.RoMap.Bases[RuntimeModel.BotPlayerId], _runtimeModel.RoPlayerUnits);
+        var playerTarget = CalcTarget(_runtimeModel.RoMap.Bases[RuntimeModel.PlayerId], _runtimeModel.RoBotUnits);
+        var playerStepPair = CalcStep(_runtimeModel.RoMap.Bases[RuntimeModel.PlayerId], _runtimeModel.RoBotUnits, _runtimeModel.RoMap.Bases[RuntimeModel.BotPlayerId]);
+        _recomendations[RuntimeModel.PlayerId] = new ActionRecomendation(playerTarget, playerStepPair.Key, playerStepPair.Value);
+
+        var enemyTarget = CalcTarget(_runtimeModel.RoMap.Bases[RuntimeModel.BotPlayerId], _runtimeModel.RoPlayerUnits);
+        var enemyStepPair = CalcStep(_runtimeModel.RoMap.Bases[RuntimeModel.BotPlayerId], _runtimeModel.RoPlayerUnits, _runtimeModel.RoMap.Bases[RuntimeModel.PlayerId]);
+        _recomendations[RuntimeModel.BotPlayerId] = new ActionRecomendation(enemyTarget, enemyStepPair.Key, enemyStepPair.Value);
     }
 
-    private void CalcRecomendedStep(float fixedDeltaTime)
-    {
-        RecommendedPlayerStep = CalcStep(_runtimeModel.RoMap.Bases[RuntimeModel.PlayerId], _runtimeModel.RoBotUnits, _runtimeModel.RoMap.Bases[RuntimeModel.BotPlayerId]);
-        RecommendedPlayerStep = CalcStep(_runtimeModel.RoMap.Bases[RuntimeModel.BotPlayerId], _runtimeModel.RoPlayerUnits, _runtimeModel.RoMap.Bases[RuntimeModel.PlayerId]);
-    }
-
-    private Vector2Int CalcStep(Vector2Int defenseBase, IEnumerable<IReadOnlyUnit> units, Vector2Int attackBase)
+    private KeyValuePair<Vector2Int, bool> CalcStep(Vector2Int defenseBase, IEnumerable<IReadOnlyUnit> units, Vector2Int attackBase)
     {
         IReadOnlyUnit nearBaseEnemy = null;
         foreach (var unit in units)
         {
-            if (defenseBase.x > _middleMapX && unit.Pos.x > _middleMapX)
+            if ((defenseBase.y > _middleMap && unit.Pos.y > _middleMap) ||
+                (defenseBase.y < _middleMap && unit.Pos.y < _middleMap))
             {
-                return defenseBase + Vector2Int.right;
-            }
-            if (defenseBase.x < _middleMapX && unit.Pos.x < _middleMapX)
-            {
-                return defenseBase + Vector2Int.left;
+                foreach (var target in _directions)
+                {
+                    var nextStep = target + defenseBase;
+                    if (_runtimeModel.IsTileWalkable(nextStep))
+                    {
+                        return KeyValuePair.Create(nextStep, false);
+                    }
+                }
             }
             if (nearBaseEnemy == null || Vector2Int.Distance(nearBaseEnemy.Pos, defenseBase) > Vector2Int.Distance(unit.Pos, defenseBase))
             {
                 nearBaseEnemy = unit;
             }
         }
-        return nearBaseEnemy == null ? attackBase : nearBaseEnemy.Pos;
+        return KeyValuePair.Create(nearBaseEnemy == null ? attackBase : nearBaseEnemy.Pos, true);
 
     }
 
@@ -85,7 +134,7 @@ public class ActionGenerator
             {
                 lowHealthEnemy = unit;
             }
-            if (defenseBase.x > _middleMapX && unit.Pos.x > _middleMapX || defenseBase.x < _middleMapX && unit.Pos.x < _middleMapX)
+            if (defenseBase.y > _middleMap && unit.Pos.y > _middleMap || defenseBase.y < _middleMap && unit.Pos.y < _middleMap)
             {
                 if (nearBaseEnemy == null)
                 {
@@ -98,6 +147,46 @@ public class ActionGenerator
             }
         }
         return nearBaseEnemy == null ? lowHealthEnemy : nearBaseEnemy;
+    }
+
+    struct ActionRecomendation
+    {
+        private IReadOnlyUnit _target;
+        private Vector2Int _step;
+        private bool _useRange;
+
+        public ActionRecomendation(IReadOnlyUnit target, Vector2Int step, bool useRange)
+        {
+            _target = target;
+            _step = step;
+            _useRange = useRange;
+        }
+
+
+
+        public IReadOnlyUnit Target
+        {
+            get
+            {
+                return _target;
+            }
+        }
+
+        public Vector2Int Step
+        {
+            get
+            {
+                return _step;
+            }
+        }
+
+        public bool UseRange
+        {
+            get
+            {
+                return _useRange;
+            }
+        }
     }
     
 }
