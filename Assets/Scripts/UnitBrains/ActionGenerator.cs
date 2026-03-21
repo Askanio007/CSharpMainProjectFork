@@ -8,11 +8,13 @@ using Utilities;
 
 public class ActionGenerator
 {
-    private static ActionGenerator _actionGenerator;
     private IReadOnlyRuntimeModel _runtimeModel;
     private TimeUtil _timeUtil;
-    private List<ActionRecomendation> _recomendations;
+    private ActionRecomendation _recomendation;
     private int _middleMap;
+    private Vector2Int _enemyBase;
+    private Vector2Int _ownBase;
+    private IEnumerable<IReadOnlyUnit> _enemies;
 
     private Vector2Int[] _directions = {
             Vector2Int.down,
@@ -21,48 +23,39 @@ public class ActionGenerator
             Vector2Int.right
         };
 
-    private ActionGenerator()
+    public ActionGenerator(bool isPlayer, IReadOnlyRuntimeModel runtimeModel, TimeUtil timeUtil)
     {
-        _runtimeModel = ServiceLocator.Get<IReadOnlyRuntimeModel>();
-        _timeUtil = ServiceLocator.Get<TimeUtil>();
-        _recomendations = new List<ActionRecomendation>
-        {
-            new ActionRecomendation(),
-            new ActionRecomendation()
-        };
+        _runtimeModel = runtimeModel;
+        _timeUtil = timeUtil;
         _middleMap = _runtimeModel.RoMap.Width / 2;
+        if (isPlayer)
+        {
+            _ownBase = _runtimeModel.RoMap.Bases[RuntimeModel.PlayerId];
+            _enemyBase = _runtimeModel.RoMap.Bases[RuntimeModel.BotPlayerId];
+            _enemies = _runtimeModel.RoBotUnits;
+        }
+        else
+        {
+            _ownBase = _runtimeModel.RoMap.Bases[RuntimeModel.BotPlayerId];
+            _enemyBase = _runtimeModel.RoMap.Bases[RuntimeModel.PlayerId];
+            _enemies = _runtimeModel.RoPlayerUnits;
+        }
         CalcRecomendations();
         _timeUtil.AddFixedUpdateAction((deltaTime) => CalcRecomendations());
     }
 
-    public static ActionGenerator GetInstance()
+    public IReadOnlyUnit GetRecomendedTarget()
     {
-        if (_actionGenerator == null)
-            _actionGenerator = new ActionGenerator();
-        return _actionGenerator; 
+        return _recomendation.Target;
     }
 
-    public IReadOnlyUnit GetRecomendedTarget(int playerId)
+    public Vector2Int GetRecomendedStep(Unit unit)
     {
-        if (_recomendations.Count <= playerId)
+        if (!_recomendation.UseRange)
         {
-            return null;
+            return _recomendation.Step;
         }
-        return _recomendations[playerId].Target;
-    }
-
-    public Vector2Int GetRecomendedStep(int playerId, Unit unit)
-    {
-        if (_recomendations.Count <= playerId)
-        {
-            return unit.Pos;
-        }
-        var recomendation = _recomendations[playerId];
-        if (!recomendation.UseRange)
-        {
-            return recomendation.Step;
-        }
-        var step = recomendation.Step;
+        var step = _recomendation.Step;
         var attackRange = unit.Config.AttackRange;
 
         int range = Mathf.FloorToInt(attackRange);
@@ -89,13 +82,9 @@ public class ActionGenerator
 
     private void CalcRecomendations()
     {
-        var playerTarget = CalcTarget(_runtimeModel.RoMap.Bases[RuntimeModel.PlayerId], _runtimeModel.RoBotUnits);
-        var playerStepPair = CalcStep(_runtimeModel.RoMap.Bases[RuntimeModel.PlayerId], _runtimeModel.RoBotUnits, _runtimeModel.RoMap.Bases[RuntimeModel.BotPlayerId]);
-        _recomendations[RuntimeModel.PlayerId] = new ActionRecomendation(playerTarget, playerStepPair.Key, playerStepPair.Value);
-
-        var enemyTarget = CalcTarget(_runtimeModel.RoMap.Bases[RuntimeModel.BotPlayerId], _runtimeModel.RoPlayerUnits);
-        var enemyStepPair = CalcStep(_runtimeModel.RoMap.Bases[RuntimeModel.BotPlayerId], _runtimeModel.RoPlayerUnits, _runtimeModel.RoMap.Bases[RuntimeModel.PlayerId]);
-        _recomendations[RuntimeModel.BotPlayerId] = new ActionRecomendation(enemyTarget, enemyStepPair.Key, enemyStepPair.Value);
+        var playerTarget = CalcTarget(_ownBase, _enemies);
+        var playerStepPair = CalcStep(_ownBase, _enemies, _enemyBase);
+        _recomendation = new ActionRecomendation(playerTarget, playerStepPair.Key, playerStepPair.Value);
     }
 
     private KeyValuePair<Vector2Int, bool> CalcStep(Vector2Int defenseBase, IEnumerable<IReadOnlyUnit> units, Vector2Int attackBase)

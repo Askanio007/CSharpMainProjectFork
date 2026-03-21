@@ -18,9 +18,10 @@ namespace UnitBrains
         public virtual BaseUnitPath ActivePath => _activePath;
         
         protected Unit unit { get; private set; }
+        protected ActionGenerator actionGenerator { get; private set; }
         protected IReadOnlyRuntimeModel runtimeModel => ServiceLocator.Get<IReadOnlyRuntimeModel>();
         private BaseUnitPath _activePath = null;
-        
+
         private readonly Vector2[] _projectileShifts = new Vector2[]
         {
             new (0f, 0f),
@@ -37,7 +38,7 @@ namespace UnitBrains
             if (HasTargetsInRange())
                 return unit.Pos;
 
-            var target = ActionGenerator.GetInstance().GetRecomendedStep(IsPlayerUnitBrain ? RuntimeModel.PlayerId : RuntimeModel.BotPlayerId, unit);
+            var target = actionGenerator.GetRecomendedStep(unit);
 
             _activePath = new AstarUnitPath(runtimeModel, unit.Pos, target);
             return _activePath.GetNextStepFrom(unit.Pos);
@@ -65,6 +66,11 @@ namespace UnitBrains
             this.unit = unit;
         }
 
+        public void SetActionGenerator(ActionGenerator actionGenerator)
+        {
+            this.actionGenerator = actionGenerator;
+        }
+
         public virtual void Update(float deltaTime, float time)
         {
         }
@@ -76,7 +82,7 @@ namespace UnitBrains
 
         protected virtual List<Vector2Int> SelectTargets()
         {
-            var target = ActionGenerator.GetInstance().GetRecomendedTarget(IsPlayerUnitBrain ? RuntimeModel.PlayerId : RuntimeModel.BotPlayerId);
+            var target = actionGenerator.GetRecomendedTarget();
             List<Vector2Int> result = new List<Vector2Int>();
             if (GetUnitsInRadius(RadiusForSearchTarget * unit.Config.AttackRange, true).Contains(target))
             {
