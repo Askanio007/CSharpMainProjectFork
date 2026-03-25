@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using Assets.Scripts.UnitBrains;
 using Model;
 using Model.Config;
 using Model.Runtime;
@@ -20,6 +21,7 @@ namespace Controller
         private readonly TimeUtil _timeUtil;
         private ActionGenerator _playerActionGenerator;
         private ActionGenerator _enemyActionGenerator;
+        private BuffManager _buffManager;
 
         public LevelController(RuntimeModel runtimeModel, RootController rootController)
         {
@@ -32,6 +34,7 @@ namespace Controller
             _gameplayView = ServiceLocator.Get<Gameplay3dView>();
             _settings = ServiceLocator.Get<Settings>();
             _timeUtil = ServiceLocator.Get<TimeUtil>();
+            _buffManager = ServiceLocator.Get<BuffManager>();
         }
 
         public void StartLevel(int level)
@@ -49,6 +52,7 @@ namespace Controller
             _runtimeModel.Stage = RuntimeModel.GameStage.ChooseUnit;
             _runtimeModel.Bases[RuntimeModel.PlayerId] = new MainBase(_settings.MainBaseMaxHp);
             _runtimeModel.Bases[RuntimeModel.BotPlayerId] = new MainBase(_settings.MainBaseMaxHp);
+            _buffManager.Clear();
 
             _playerActionGenerator = new ActionGenerator(true, _runtimeModel, _timeUtil);
             _enemyActionGenerator = new ActionGenerator(false, _runtimeModel, _timeUtil);

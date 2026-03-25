@@ -20,6 +20,7 @@ namespace UnitBrains
         protected Unit unit { get; private set; }
         protected ActionGenerator actionGenerator { get; private set; }
         protected IReadOnlyRuntimeModel runtimeModel => ServiceLocator.Get<IReadOnlyRuntimeModel>();
+
         private BaseUnitPath _activePath = null;
 
         private readonly Vector2[] _projectileShifts = new Vector2[]
@@ -144,8 +145,33 @@ namespace UnitBrains
 
         protected IEnumerable<IReadOnlyUnit> GetAllEnemyUnits()
         {
+            return GetAllUnits(!IsPlayerUnitBrain);
+        }
+
+        protected IEnumerable<IReadOnlyUnit> GetAllOurUnits()
+        {
+            return GetAllUnits(IsPlayerUnitBrain);
+        }
+
+        protected IEnumerable<IReadOnlyUnit> GetReachableOurUnits()
+        {
+            var result = new List<IReadOnlyUnit>();
+            var attackRangeSqr = unit.Config.AttackRange * unit.Config.AttackRange;
+            foreach (var possibleTarget in GetAllOurUnits())
+            {
+                if (!IsTargetInRange(possibleTarget.Pos))
+                    continue;
+
+                result.Add(possibleTarget);
+            }
+
+            return result;
+        }
+
+        private IEnumerable<IReadOnlyUnit> GetAllUnits(bool IsPlayerUnit)
+        {
             return runtimeModel.RoUnits
-                .Where(u => u.Config.IsPlayerUnit != IsPlayerUnitBrain);
+                .Where(u => u.Config.IsPlayerUnit == IsPlayerUnit);
         }
 
         protected IEnumerable<Vector2Int> GetAllTargets()

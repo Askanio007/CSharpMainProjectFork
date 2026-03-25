@@ -17,7 +17,8 @@ public class EnterPoint : MonoBehaviour
         Time.timeScale = _timeScale;
         _settings.LoadPrefabs();
         ServiceLocator.Register(_settings);
-        
+        ServiceLocator.Register(GetComponent<BuffManager>());
+
         var rootController = new RootController(_settings, _targetCanvas);
         ServiceLocator.Register(rootController);
     }
