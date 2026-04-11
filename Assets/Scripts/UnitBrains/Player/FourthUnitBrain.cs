@@ -58,7 +58,7 @@ public class FourthUnitBrain : DefaultPlayerUnitBrain
                     {
                         continue;
                     }
-                    if (!_buffManager.existByUnit(unit))
+                    if (!_buffManager.ExistByUnit(unit))
                     {
                         Debug.Log($"Buff to {unit.Config.Name}");
                         _unitToBuff = unit;

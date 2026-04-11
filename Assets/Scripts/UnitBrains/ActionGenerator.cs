@@ -56,7 +56,7 @@ public class ActionGenerator
             return _recomendation.Step;
         }
         var step = _recomendation.Step;
-        var attackRange = unit.Config.AttackRange;
+        var attackRange = unit.AttackRange;
 
         int range = Mathf.FloorToInt(attackRange);
 

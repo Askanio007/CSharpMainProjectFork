@@ -1,5 +1,7 @@
 ﻿
+using Assets.Scripts.Model.Runtime;
 using Model.Runtime.ReadOnly;
+using UnitBrains;
 
 namespace Model.Runtime
 {
@@ -10,11 +12,11 @@ namespace Model.Runtime
         private float _modifier { get; }
         private BuffType _type { get; }
 
-        int IReadOnlyBuff.Duration => _duration;
+        public float Modifier => _modifier;
 
-        float IReadOnlyBuff.Modifier => _modifier;
+        public BuffType Type => _type;
 
-        BuffType IReadOnlyBuff.Type => _type;
+        public int Duration => _duration;
 
         public AbstractBuff(int duration, float modifier, BuffType type)
         {
@@ -23,5 +25,11 @@ namespace Model.Runtime
             _type = type;
         }
 
+        public abstract void ApplyBuff(IWriteUnit unit);
+        public abstract void ClearBuff(IWriteUnit unit);
+        public virtual bool IsBuffCanApply(System.Type brainType)
+        { 
+            return true; 
+        }
     }
 }

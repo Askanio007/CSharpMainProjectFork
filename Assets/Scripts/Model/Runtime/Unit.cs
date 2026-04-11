@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using Assets.Scripts.UnitBrains;
-using Model.Config;
+﻿using Model.Config;
 using Model.Runtime.Projectiles;
 using Model.Runtime.ReadOnly;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnitBrains;
 using UnitBrains.Pathfinding;
 using UnityEngine;
@@ -16,14 +16,18 @@ namespace Model.Runtime
         public UnitConfig Config { get; }
         public Vector2Int Pos { get; private set; }
         public int Health { get; private set; }
+        public float MoveDelay { get; set; }
+        public float AttackDelay { get; set; }
+        public float AttackRange { get; set; }
+        public int AttackCount { get; set; }
         public bool IsDead => Health <= 0;
         public BaseUnitPath ActivePath => _brain?.ActivePath;
         public IReadOnlyList<BaseProjectile> PendingProjectiles => _pendingProjectiles;
+        public Type GetBrainType => _brain.GetType();
 
         private readonly List<BaseProjectile> _pendingProjectiles = new();
         private IReadOnlyRuntimeModel _runtimeModel;
         private BaseUnitBrain _brain;
-        private readonly BuffManager _buffManager;
 
         private float _nextBrainUpdateTime = 0f;
         private float _nextMoveTime = 0f;
@@ -38,7 +42,10 @@ namespace Model.Runtime
             _brain.SetUnit(this);
             _brain.SetActionGenerator(actionGenerator);
             _runtimeModel = ServiceLocator.Get<IReadOnlyRuntimeModel>();
-            _buffManager = ServiceLocator.Get<BuffManager>();
+            ResetAttackDelayToDefault();
+            ResetMoveDelayToDefault();
+            ResetAttackRangeToDefault();
+            ResetAttackCountToDefault();
         }
 
         public void Update(float deltaTime, float time)
@@ -54,35 +61,16 @@ namespace Model.Runtime
             
             if (_nextMoveTime < time)
             {
-                _nextMoveTime = time + GetMoveDelay();
+                _nextMoveTime = time + MoveDelay;
                 Move();
             }
             
             if (_nextAttackTime < time && Attack())
             {
-                _nextAttackTime = time + GetAttackDelay();
+                _nextAttackTime = time + AttackDelay;
             }
         }
 
-        private float GetMoveDelay()
-        {
-            return Config.MoveDelay + GetBuffModifier(BuffType.MoveSpeed);
-        }
-
-        private float GetAttackDelay()
-        {
-            return Config.AttackDelay + GetBuffModifier(BuffType.AttackSpeed);
-        }
-
-        private float GetBuffModifier(BuffType type)
-        {
-            var buff = _buffManager.GetBuff(this, type);
-            if (buff == null)
-            {
-                return 0;
-            }
-            return buff.Modifier;
-        }
 
         private bool Attack()
         {
@@ -90,7 +78,10 @@ namespace Model.Runtime
             if (projectiles == null || projectiles.Count == 0)
                 return false;
             
-            _pendingProjectiles.AddRange(projectiles);
+            for (int i = 0; i < AttackCount; i++)
+            {
+                _pendingProjectiles.AddRange(projectiles);
+            }
             return true;
         }
 
@@ -121,6 +112,26 @@ namespace Model.Runtime
         public void TakeDamage(int projectileDamage)
         {
             Health -= projectileDamage;
+        }
+
+        public void ResetAttackDelayToDefault()
+        {
+            MoveDelay = Config.MoveDelay;
+        }
+
+        public void ResetMoveDelayToDefault()
+        {
+            AttackDelay = Config.AttackDelay;
+        }
+
+        public void ResetAttackRangeToDefault()
+        {
+            AttackRange = Config.AttackRange;
+        }
+
+        public void ResetAttackCountToDefault()
+        {
+            AttackCount = 1;
         }
     }
 }

@@ -2,6 +2,7 @@
 using Model.Runtime.ReadOnly;
 using System.Collections;
 using System.Collections.Generic;
+using UnitBrains.Player;
 using UnityEngine;
 using Utilities;
 using View;
@@ -20,7 +21,9 @@ namespace Assets.Scripts.UnitBrains
             _buffList = new()
             {
                 new AttackSpeedBuff(),
-                new MoveSpeedBuff()
+                new MoveSpeedBuff(),
+                new RangeIncreaseBuff<ThirdUnitBrain>(),
+                new DoubleAttackBuff<SecondUnitBrain>()
             };
         }
 
@@ -33,8 +36,7 @@ namespace Assets.Scripts.UnitBrains
             }
         }
 
-
-        public bool existByUnit(IReadOnlyUnit unit)
+        public bool ExistByUnit(IReadOnlyUnit unit)
         {
             return buffs.ContainsKey(unit);
         }
@@ -47,6 +49,11 @@ namespace Assets.Scripts.UnitBrains
 
         public void AddBuff(IReadOnlyUnit unit, IReadOnlyBuff buff)
         {
+            if (!buff.IsBuffCanApply(unit.GetBrainType))
+            {
+                Debug.Log($"Can't set buff {buff.Type} to {unit.GetBrainType}");
+                return;
+            }
             if (buffs.ContainsKey(unit))
             {
                 var unitBuffs = buffs[unit];
@@ -63,6 +70,7 @@ namespace Assets.Scripts.UnitBrains
                 };
                 buffs.Add(unit, unitBuffs);
             }
+            buff.ApplyBuff(unit);
             GetVFXView().PlayVFX(unit.Pos, VFXView.VFXType.BuffApplied);
             var cor = StartCoroutine(BuffTimerCoroutine(unit, buff));
             activeBuffs.Add(cor);
@@ -78,6 +86,7 @@ namespace Assets.Scripts.UnitBrains
                 yield return new WaitForSeconds(1f);
             }
             buffs[unit].Remove(buff.Type);
+            buff.ClearBuff(unit);
         }
 
         private VFXView GetVFXView()
